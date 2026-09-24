@@ -96,38 +96,6 @@ export default function Home() {
           </Card>
         )}
 
-        {/* TEMP DEV OUTPOST BUTTONS */}
-        {!isFinished && (
-          <Card className="border-none shadow-sm rounded-3xl bg-white overflow-hidden">
-            <div className="p-6">
-              <h3 className="text-lg font-bold mb-4 text-red-500">Dev Mode: Test Outposts</h3>
-              <div className="grid grid-cols-2 gap-3">
-                {[1, 2, 3, 4].map(num => (
-                  <Button 
-                    key={num} 
-                    variant="outline" 
-                    onClick={async () => {
-                      const snap = await get(ref(db, 'outposts'));
-                      if (snap.exists()) {
-                        const outposts = Object.values(snap.val());
-                        const outpost = outposts.find(o => o.name === `Outpost ${num}`);
-                        if (outpost) {
-                          setActiveOutpost(outpost);
-                          navigate('/market');
-                        } else {
-                          alert(`Outpost ${num} not found in database.`);
-                        }
-                      }
-                    }}
-                  >
-                    Test Outpost {num}
-                  </Button>
-                ))}
-              </div>
-            </div>
-          </Card>
-        )}
-
         <div className="text-center pb-8">
           <Button variant="ghost" onClick={() => auth.signOut()}>Log Out</Button>
         </div>
