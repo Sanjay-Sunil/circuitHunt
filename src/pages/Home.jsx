@@ -27,7 +27,7 @@ export default function Home() {
 
   useEffect(() => {
     let scanner;
-    if (team?.status === 'playing') {
+    if (team?.status === 'playing' && document.getElementById('reader')) {
       scanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: { width: 250, height: 250 } }, false);
       scanner.render(async (decodedText) => {
         scanner.clear();
@@ -49,7 +49,7 @@ export default function Home() {
     return () => {
       if (scanner) scanner.clear().catch(e => console.error(e));
     };
-  }, [team, navigate, setActiveOutpost]);
+  }, [team, circuit, gameConfig, navigate, setActiveOutpost]);
 
   if (!team || !circuit) return <div className="min-h-screen bg-muted flex items-center justify-center font-medium">Loading...</div>;
 
@@ -115,6 +115,38 @@ export default function Home() {
                   <div id="reader" className="w-full"></div>
                 </div>
               )}
+            </div>
+          </Card>
+        )}
+
+        {/* TEMP DEV OUTPOST BUTTONS */}
+        {!isFinished && (
+          <Card className="border-none shadow-sm rounded-3xl bg-white overflow-hidden">
+            <div className="p-6">
+              <h3 className="text-lg font-bold mb-4 text-red-500">Dev Mode: Test Outposts</h3>
+              <div className="grid grid-cols-2 gap-3">
+                {[1, 2, 3, 4].map(num => (
+                  <Button 
+                    key={num} 
+                    variant="outline" 
+                    onClick={async () => {
+                      const snap = await get(ref(db, 'outposts'));
+                      if (snap.exists()) {
+                        const outposts = Object.values(snap.val());
+                        const outpost = outposts.find(o => o.name === `Outpost ${num}`);
+                        if (outpost) {
+                          setActiveOutpost(outpost);
+                          navigate('/market');
+                        } else {
+                          alert(`Outpost ${num} not found in database.`);
+                        }
+                      }
+                    }}
+                  >
+                    Test Outpost {num}
+                  </Button>
+                ))}
+              </div>
             </div>
           </Card>
         )}

@@ -1,4 +1,5 @@
-import admin from 'firebase-admin';
+import { initializeApp, cert } from 'firebase-admin/app';
+import { getDatabase } from 'firebase-admin/database';
 import { readFileSync } from 'fs';
 import dotenv from 'dotenv';
 
@@ -7,12 +8,12 @@ dotenv.config({ path: '.env' });
 
 const serviceAccount = JSON.parse(readFileSync('./serviceAccountKey.json', 'utf-8'));
 
-admin.initializeApp({
-  credential: admin.credential.cert(serviceAccount),
+initializeApp({
+  credential: cert(serviceAccount),
   databaseURL: process.env.VITE_FIREBASE_DATABASE_URL
 });
 
-const db = admin.database();
+const db = getDatabase();
 
 const outpostsSlugs = JSON.parse(readFileSync('./outpost-slugs.json', 'utf-8'));
 
@@ -82,14 +83,14 @@ const data = {
     }
   },
   "circuits": {
-    "c1": { "name": "Circuit 1", "required": ["photoresistor", "led", "resistor"] },
-    "c2": { "name": "Circuit 2", "required": ["push_button", "potentiometer", "led", "resistor"] },
-    "c3": { "name": "Circuit 3", "required": ["temp_sensor", "buzzer", "resistor"] },
-    "c4": { "name": "Circuit 4", "required": ["push_button", "capacitor", "buzzer"] },
-    "c5": { "name": "Circuit 5", "required": ["ultrasonic_sensor", "led", "resistor"] },
-    "c6": { "name": "Circuit 6", "required": ["ultrasonic_sensor", "temp_sensor", "buzzer"] },
-    "c7": { "name": "Circuit 7", "required": ["push_button", "buzzer", "photoresistor"] },
-    "c8": { "name": "Circuit 8", "required": ["led", "resistor", "buzzer"] }
+    "c1": { "name": "Circuit 1", "required": ["photoresistor", "led", "resistor"], "budget": 25 },
+    "c2": { "name": "Circuit 2", "required": ["push_button", "potentiometer", "led", "resistor"], "budget": 30 },
+    "c3": { "name": "Circuit 3", "required": ["temp_sensor", "buzzer", "resistor"], "budget": 45 },
+    "c4": { "name": "Circuit 4", "required": ["push_button", "capacitor", "buzzer"], "budget": 30 },
+    "c5": { "name": "Circuit 5", "required": ["ultrasonic_sensor", "led", "resistor"], "budget": 50 },
+    "c6": { "name": "Circuit 6", "required": ["ultrasonic_sensor", "temp_sensor", "buzzer"], "budget": 75 },
+    "c7": { "name": "Circuit 7", "required": ["push_button", "buzzer", "photoresistor"], "budget": 35 },
+    "c8": { "name": "Circuit 8", "required": ["led", "resistor", "buzzer"], "budget": 30 }
   },
   "meta": {
     "circuitAssignmentCounts": {

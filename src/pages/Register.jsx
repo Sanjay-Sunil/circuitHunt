@@ -20,16 +20,14 @@ export default function Register() {
     
     try {
       const uid = auth.currentUser.uid;
-      const gameConfigSnap = await get(ref(db, 'gameConfig'));
-      const startingBalance = gameConfigSnap.val()?.startingBalance || 0;
-      
+
       const countsRef = ref(db, 'meta/circuitAssignmentCounts');
       let assignedCircuit = 'circuit_1';
       
       await runTransaction(countsRef, (currentData) => {
         if (!currentData) {
-          assignedCircuit = 'circuit_1';
-          return { circuit_1: 1, circuit_2: 0, circuit_3: 0, circuit_4: 0, circuit_5: 0, circuit_6: 0 };
+          assignedCircuit = 'c1';
+          return { c1: 1, c2: 0, c3: 0, c4: 0, c5: 0, c6: 0, c7: 0, c8: 0 };
         }
         
         let minCount = Infinity;
@@ -45,6 +43,9 @@ export default function Register() {
         return currentData;
       });
       
+      const circuitSnap = await get(ref(db, `circuits/${assignedCircuit}`));
+      const startingBalance = circuitSnap.val()?.budget || 200;
+
       const teamRef = ref(db, `teams/${uid}`);
       await runTransaction(teamRef, (currentTeam) => {
         if (currentTeam === null) {

@@ -207,7 +207,23 @@ export default function AdminDashboard() {
                             {ownedCount} / {reqCount}
                           </span>
                         </td>
-                        <td className="px-6 py-4 font-mono font-bold text-gray-900">₹{team.balance}</td>
+                        <td className="px-6 py-4 font-mono font-bold text-gray-900">
+                          ₹{team.balance}
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="ml-2 h-6 px-2 text-xs" 
+                            onClick={() => {
+                              const newBal = prompt(`Enter new balance for ${team.teamName}:`, team.balance);
+                              if (newBal !== null) {
+                                const val = parseInt(newBal, 10);
+                                if (!isNaN(val)) set(ref(db, `teams/${team.uid}/balance`), val);
+                              }
+                            }}
+                          >
+                            Edit
+                          </Button>
+                        </td>
                         <td className="px-6 py-4">
                           <Badge variant={team.status === 'finished' ? 'success' : 'secondary'}>
                             {team.status}
