@@ -11,17 +11,17 @@ export default function AdminDashboard() {
   const [teams, setTeams] = useState({});
   const [circuits, setCircuits] = useState({});
   const [expandedTeam, setExpandedTeam] = useState(null);
+  const [editedBudgets, setEditedBudgets] = useState({});
+  const [hasBudgetChanges, setHasBudgetChanges] = useState(false);
   
-  const [startingBalanceInput, setStartingBalanceInput] = useState('');
+
   const navigate = useNavigate();
 
   useEffect(() => {
     const configRef = ref(db, 'gameConfig');
     const unsubConfig = onValue(configRef, snap => {
       if (snap.exists()) {
-        const val = snap.val();
-        setGameConfig(val);
-        setStartingBalanceInput(prev => prev === '' ? (val.startingBalance?.toString() || '200') : prev);
+        setGameConfig(snap.val());
       }
     });
 
@@ -30,7 +30,15 @@ export default function AdminDashboard() {
       setTeams(snap.exists() ? snap.val() : {});
     });
     
-    get(ref(db, 'circuits')).then(snap => setCircuits(snap.exists() ? snap.val() : {}));
+    get(ref(db, 'circuits')).then(snap => {
+      if (snap.exists()) {
+        const val = snap.val();
+        setCircuits(val);
+        const init = {};
+        Object.entries(val).forEach(([k,v]) => init[k] = v.budget);
+        setEditedBudgets(init);
+      }
+    });
 
     return () => {
       unsubConfig();
@@ -55,12 +63,15 @@ export default function AdminDashboard() {
     }
   };
 
-  const handleSaveBalance = () => {
-    const val = parseInt(startingBalanceInput, 10);
-    if (!isNaN(val)) {
-      set(ref(db, 'gameConfig/startingBalance'), val);
-      alert('Starting balance updated for future registrations.');
-    }
+  const handleSaveBudgets = () => {
+    const updates = {};
+    Object.entries(editedBudgets).forEach(([c, val]) => {
+      if (val !== '') updates[`circuits/${c}/budget`] = val;
+    });
+    update(ref(db), updates).then(() => {
+      setHasBudgetChanges(false);
+      alert('Budgets updated successfully!');
+    });
   };
 
   const handleResetGame = async () => {
@@ -134,21 +145,38 @@ export default function AdminDashboard() {
             </CardContent>
           </Card>
 
-          {/* Starting Balance */}
+          {/* Circuit Budgets */}
           <Card className="border-none shadow-sm rounded-3xl bg-white">
-            <CardHeader className="p-6 pb-4">
-              <CardTitle className="text-xl">Starting Balance</CardTitle>
-              <CardDescription>Funds given to new teams</CardDescription>
+            <CardHeader className="p-6 pb-4 flex flex-row items-start justify-between">
+              <div>
+                <CardTitle className="text-xl">Starting Budgets</CardTitle>
+                <CardDescription>Initial funds per circuit</CardDescription>
+              </div>
+              <Button 
+                onClick={handleSaveBudgets} 
+                disabled={!hasBudgetChanges}
+                className={`transition-all h-10 px-6 rounded-xl mt-[-4px] ${hasBudgetChanges ? 'bg-black text-white hover:bg-gray-800' : 'bg-gray-100 text-gray-400'}`}
+              >
+                Save
+              </Button>
             </CardHeader>
             <CardContent className="p-6 pt-0">
-              <div className="flex gap-2">
-                <input 
-                  type="number" 
-                  value={startingBalanceInput} 
-                  onChange={e => setStartingBalanceInput(e.target.value)} 
-                  className="flex-1 bg-gray-50 border border-gray-200 rounded-2xl px-4 py-3 font-mono focus:outline-none focus:ring-2 focus:ring-black"
-                />
-                <Button onClick={handleSaveBalance} className="h-auto rounded-2xl px-6">Save</Button>
+              <div className="grid grid-cols-4 gap-3">
+                {['c1', 'c2', 'c3', 'c4', 'c5', 'c6', 'c7', 'c8'].map(c => (
+                  <div key={c} className="flex flex-col">
+                    <span className="text-[10px] font-bold text-gray-400 uppercase">{c}</span>
+                    <input 
+                      type="number" 
+                      value={editedBudgets[c] !== undefined ? editedBudgets[c] : (circuits[c]?.budget || '')} 
+                      onChange={e => {
+                        const val = parseInt(e.target.value, 10);
+                        setEditedBudgets(prev => ({...prev, [c]: isNaN(val) ? '' : val}));
+                        setHasBudgetChanges(true);
+                      }} 
+                      className="bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-black transition-all"
+                    />
+                  </div>
+                ))}
               </div>
             </CardContent>
           </Card>

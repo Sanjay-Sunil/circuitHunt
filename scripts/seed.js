@@ -34,51 +34,51 @@ const data = {
       "name": "Outpost 1",
       "slug": outpostsSlugs.outpost1,
       "prices": {
-        "temp_sensor": [20, 25, 30, 35],
+        "temp_sensor": [25, 30, 35, 20],
         "buzzer": [15, 20, 25, 30],
-        "potentiometer": [10, 15, 20, 25],
+        "potentiometer": [5, 10, 15, 20],
         "capacitor": [5, 10, 15, 20],
-        "push_button": [5, 10, 15, 20],
-        "led": [5, 10, 15, 20]
+        "push_button": [10, 15, 20, 5],
+        "led": [10, 15, 20, 5]
       }
     },
     "outpost2": {
       "name": "Outpost 2",
       "slug": outpostsSlugs.outpost2,
       "prices": {
-        "ultrasonic_sensor": [40, 45, 50, 35],
-        "buzzer": [20, 25, 30, 15],
-        "potentiometer": [15, 20, 25, 10],
-        "photoresistor": [15, 20, 25, 10],
-        "push_button": [10, 15, 20, 5],
-        "led": [10, 15, 20, 5],
-        "resistor": [10, 15, 20, 5]
+        "ultrasonic_sensor": [35, 40, 45, 50],
+        "buzzer": [15, 25, 30, 20],
+        "potentiometer": [5, 15, 20, 10],
+        "photoresistor": [10, 15, 20, 25],
+        "push_button": [10, 20, 5, 15],
+        "led": [10, 20, 5, 15],
+        "resistor": [5, 10, 15, 20]
       }
     },
     "outpost3": {
       "name": "Outpost 3",
       "slug": outpostsSlugs.outpost3,
       "prices": {
-        "ultrasonic_sensor": [45, 50, 35, 40],
-        "temp_sensor": [30, 35, 20, 25],
-        "potentiometer": [20, 25, 10, 15],
-        "photoresistor": [20, 25, 10, 15],
-        "capacitor": [15, 20, 5, 10],
-        "led": [15, 20, 5, 10],
-        "resistor": [15, 20, 5, 10]
+        "ultrasonic_sensor": [35, 45, 50, 40],
+        "temp_sensor": [25, 35, 20, 30],
+        "potentiometer": [5, 20, 10, 15],
+        "photoresistor": [10, 20, 25, 15],
+        "capacitor": [5, 15, 20, 10],
+        "led": [10, 5, 15, 20],
+        "resistor": [5, 15, 20, 10]
       }
     },
     "outpost4": {
       "name": "Outpost 4",
       "slug": outpostsSlugs.outpost4,
       "prices": {
-        "ultrasonic_sensor": [50, 35, 40, 45],
-        "temp_sensor": [35, 20, 25, 30],
-        "buzzer": [30, 15, 20, 25],
-        "photoresistor": [25, 10, 15, 20],
-        "capacitor": [20, 5, 10, 15],
-        "push_button": [20, 5, 10, 15],
-        "resistor": [20, 5, 10, 15]
+        "ultrasonic_sensor": [35, 50, 40, 45],
+        "temp_sensor": [25, 20, 30, 35],
+        "buzzer": [15, 30, 20, 25],
+        "photoresistor": [10, 25, 15, 20],
+        "capacitor": [5, 20, 10, 15],
+        "push_button": [10, 5, 15, 20],
+        "resistor": [5, 20, 10, 15]
       }
     }
   },
