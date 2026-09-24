@@ -2,12 +2,12 @@ import { useState, useEffect } from 'react';
 import { useTeam } from '../context/TeamContext';
 import { db, auth } from '../lib/firebase';
 import { ref, get } from 'firebase/database';
-import { Html5QrcodeScanner } from 'html5-qrcode';
 import { useNavigate } from 'react-router-dom';
 import { useMarket } from '../context/MarketContext';
 import { Card, CardContent } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
+import OutpostQRScanner from '../components/OutpostQRScanner';
 
 export default function Home() {
   const { team } = useTeam();
@@ -24,32 +24,6 @@ export default function Home() {
     get(ref(db, 'components')).then(snap => setComponents(snap.val() || {}));
     get(ref(db, 'gameConfig')).then(snap => setGameConfig(snap.val() || {}));
   }, [team]);
-
-  useEffect(() => {
-    let scanner;
-    if (team?.status === 'playing' && document.getElementById('reader')) {
-      scanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: { width: 250, height: 250 } }, false);
-      scanner.render(async (decodedText) => {
-        scanner.clear();
-        const outpostsSnap = await get(ref(db, 'outposts'));
-        if (outpostsSnap.exists()) {
-          const outposts = Object.values(outpostsSnap.val());
-          const matched = outposts.find(o => o.slug === decodedText);
-          if (matched) {
-            setActiveOutpost(matched);
-            navigate('/market');
-          } else {
-            alert('Invalid QR code');
-          }
-        }
-      }, (error) => {
-        // ignore scan errors
-      });
-    }
-    return () => {
-      if (scanner) scanner.clear().catch(e => console.error(e));
-    };
-  }, [team, circuit, gameConfig, navigate, setActiveOutpost]);
 
   if (!team || !circuit) return <div className="min-h-screen bg-muted flex items-center justify-center font-medium">Loading...</div>;
 
@@ -103,17 +77,20 @@ export default function Home() {
         {!isFinished && (
           <Card className="border-none shadow-sm rounded-3xl bg-white overflow-hidden">
             <div className="p-6">
-              <h3 className="text-xl font-bold mb-2">Scan Outpost QR</h3>
-              <p className="text-gray-500 text-sm mb-6">Scan an outpost QR code to enter the marketplace.</p>
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-xl font-bold text-gray-950">Scan Outpost QR</h3>
+                <span className="text-xs font-semibold px-2.5 py-1 bg-gray-100 text-gray-600 rounded-full">
+                  Market Access
+                </span>
+              </div>
+              <p className="text-gray-500 text-sm mb-5">Point camera at an Outpost QR code to enter its marketplace.</p>
               
               {gameConfig?.status === 'ended' ? (
                 <div className="bg-red-50 text-red-600 p-4 rounded-2xl text-center font-bold">
                   This event has ended.
                 </div>
               ) : (
-                <div className="rounded-2xl overflow-hidden border border-gray-200">
-                  <div id="reader" className="w-full"></div>
-                </div>
+                <OutpostQRScanner />
               )}
             </div>
           </Card>
