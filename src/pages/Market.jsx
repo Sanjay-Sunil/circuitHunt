@@ -52,6 +52,7 @@ export default function Market() {
   
   const [gameConfig, setGameConfig] = useState(null);
   const [components, setComponents] = useState({});
+  const [outposts, setOutposts] = useState({});
   const [circuit, setCircuit] = useState(null);
   const [activeWindow, setActiveWindow] = useState(null);
   const [tab, setTab] = useState('buy');
@@ -61,6 +62,7 @@ export default function Market() {
   useEffect(() => {
     get(ref(db, 'gameConfig')).then(snap => setGameConfig(snap.val()));
     get(ref(db, 'components')).then(snap => setComponents(snap.val() || {}));
+    get(ref(db, 'outposts')).then(snap => setOutposts(snap.val() || {}));
   }, []);
 
   useEffect(() => {
@@ -95,6 +97,30 @@ export default function Market() {
   if (!team) return null;
   if (team.status === 'finished') return <Navigate to="/finished" replace />;
 
+  const getOutpostKey = (outpost) => outpost?.slug || outpost?.key || outpost?.id || '';
+
+  const isPurchasedAtCurrentOutpost = (invItem, outpost) => {
+    if (!invItem || !outpost) return false;
+    const currentKey = getOutpostKey(outpost);
+    if (!invItem.outpostId) return true; // Fallback for legacy items without outpostId
+    return (
+      invItem.outpostId === currentKey ||
+      (outpost.slug && invItem.outpostId === outpost.slug) ||
+      (outpost.key && invItem.outpostId === outpost.key)
+    );
+  };
+
+  const getOriginOutpostName = (outpostId) => {
+    if (!outpostId) return 'Original Outpost';
+    if (outposts) {
+      const found = Object.values(outposts).find(
+        (o) => o.slug === outpostId || o.key === outpostId
+      );
+      if (found?.name) return found.name;
+    }
+    return 'Another Outpost';
+  };
+
   if (gameConfig && gameConfig.status !== 'running') {
     return (
       <div className="min-h-screen flex items-center justify-center bg-muted p-4">
@@ -108,20 +134,34 @@ export default function Market() {
 
   const handleSell = async (componentId, boughtPrice) => {
     if (loadingAction) return;
+    const invItem = team.inventory?.[componentId];
+    if (invItem && !isPurchasedAtCurrentOutpost(invItem, activeOutpost)) {
+      return alert("This product can only be sold at the outpost where it was purchased.");
+    }
     setLoadingAction(true);
     const teamRef = ref(db, `teams/${auth.currentUser.uid}`);
     try {
       await runTransaction(teamRef, (currentTeam) => {
         if (!currentTeam) return currentTeam;
-        if (!currentTeam.inventory || !currentTeam.inventory[componentId]?.owned) return; 
+        const currentItem = currentTeam.inventory?.[componentId];
+        if (!currentItem?.owned) return; 
 
-        currentTeam.inventory[componentId].owned = false;
+        if (!isPurchasedAtCurrentOutpost(currentItem, activeOutpost)) {
+          throw new Error("This product can only be sold at the outpost where it was purchased.");
+        }
+
+        currentItem.owned = false;
         currentTeam.balance += boughtPrice;
         
         const logId = Date.now().toString();
         if (!currentTeam.logs) currentTeam.logs = {};
         currentTeam.logs[logId] = {
-          type: "sell", outpostId: activeOutpost.slug, componentId, amount: boughtPrice, balanceAfter: currentTeam.balance, timestamp: Date.now()
+          type: "sell", 
+          outpostId: getOutpostKey(activeOutpost), 
+          componentId, 
+          amount: boughtPrice, 
+          balanceAfter: currentTeam.balance, 
+          timestamp: Date.now()
         };
         return currentTeam;
       });
@@ -134,6 +174,9 @@ export default function Market() {
 
   const handleBuy = async (componentId, price) => {
     if (loadingAction) return;
+    if (team.inventory?.[componentId]?.owned) {
+      return alert("You already own this component!");
+    }
     if (team.balance < price) return alert("Insufficient funds!");
     setLoadingAction(true);
     const teamRef = ref(db, `teams/${auth.currentUser.uid}`);
@@ -141,16 +184,26 @@ export default function Market() {
     try {
       await runTransaction(teamRef, (currentTeam) => {
         if (!currentTeam) return currentTeam;
+        if (currentTeam.inventory?.[componentId]?.owned) return;
         if (currentTeam.balance < price) return; 
         
         currentTeam.balance -= price;
         if (!currentTeam.inventory) currentTeam.inventory = {};
-        currentTeam.inventory[componentId] = { owned: true, boughtPrice: price, outpostId: activeOutpost.slug };
+        currentTeam.inventory[componentId] = { 
+          owned: true, 
+          boughtPrice: price, 
+          outpostId: getOutpostKey(activeOutpost) 
+        };
         
         const logId = Date.now().toString();
         if (!currentTeam.logs) currentTeam.logs = {};
         currentTeam.logs[logId] = {
-          type: "buy", outpostId: activeOutpost.slug, componentId, amount: -price, balanceAfter: currentTeam.balance, timestamp: Date.now()
+          type: "buy", 
+          outpostId: getOutpostKey(activeOutpost), 
+          componentId, 
+          amount: -price, 
+          balanceAfter: currentTeam.balance, 
+          timestamp: Date.now()
         };
         
         if (circuit && checkCircuitCompletion(circuit.required, currentTeam.inventory)) {
@@ -170,6 +223,10 @@ export default function Market() {
 
   const handleSwap = async (componentId, currentPrice, boughtPrice) => {
     if (loadingAction) return;
+    const invItem = team.inventory?.[componentId];
+    if (invItem && !isPurchasedAtCurrentOutpost(invItem, activeOutpost)) {
+      return alert("This product can only be swapped at the outpost where it was purchased.");
+    }
     if (currentPrice > boughtPrice && team.balance < (currentPrice - boughtPrice)) {
       return alert("Insufficient funds to cover the swap difference!");
     }
@@ -179,18 +236,32 @@ export default function Market() {
     try {
       await runTransaction(teamRef, (currentTeam) => {
         if (!currentTeam) return currentTeam;
+        const currentItem = currentTeam.inventory?.[componentId];
+        if (!currentItem?.owned) return;
+        if (!isPurchasedAtCurrentOutpost(currentItem, activeOutpost)) {
+          throw new Error("This product can only be swapped at the outpost where it was purchased.");
+        }
         if (currentPrice > boughtPrice && currentTeam.balance < (currentPrice - boughtPrice)) return;
         
         currentTeam.balance += boughtPrice;
         currentTeam.balance -= currentPrice;
         
         if (!currentTeam.inventory) currentTeam.inventory = {};
-        currentTeam.inventory[componentId] = { owned: true, boughtPrice: currentPrice, outpostId: activeOutpost.slug };
+        currentTeam.inventory[componentId] = { 
+          owned: true, 
+          boughtPrice: currentPrice, 
+          outpostId: getOutpostKey(activeOutpost) 
+        };
         
         const logId = Date.now().toString();
         if (!currentTeam.logs) currentTeam.logs = {};
         currentTeam.logs[logId] = {
-          type: "swap", oldPrice: boughtPrice, newPrice: currentPrice, amount: currentPrice - boughtPrice, balanceAfter: currentTeam.balance, timestamp: Date.now()
+          type: "swap", 
+          oldPrice: boughtPrice, 
+          newPrice: currentPrice, 
+          amount: currentPrice - boughtPrice, 
+          balanceAfter: currentTeam.balance, 
+          timestamp: Date.now()
         };
         
         if (circuit && checkCircuitCompletion(circuit.required, currentTeam.inventory)) {
@@ -253,10 +324,13 @@ export default function Market() {
             const price = getPrice(activeOutpost, compId, activeWindow);
             if (price === undefined) return null;
             
-            const isOwned = team.inventory?.[compId]?.owned;
-            const boughtPrice = isOwned ? team.inventory[compId].boughtPrice : 0;
-            const swapData = isOwned ? calculateSwapDelta(price, boughtPrice) : null;
+            const invItem = team.inventory?.[compId];
+            const isOwned = invItem?.owned;
+            const isFromThisOutpost = isOwned && isPurchasedAtCurrentOutpost(invItem, activeOutpost);
+            const boughtPrice = isOwned ? invItem.boughtPrice : 0;
+            const swapData = isFromThisOutpost ? calculateSwapDelta(price, boughtPrice) : null;
             const isMissionItem = circuit?.required?.includes(compId);
+            const originName = isOwned && !isFromThisOutpost ? getOriginOutpostName(invItem.outpostId) : null;
             
             return (
               <Card key={compId} className="border-none shadow-sm rounded-3xl bg-white overflow-hidden flex items-center justify-between p-4 sm:p-5">
@@ -276,6 +350,11 @@ export default function Market() {
                     <p className="text-gray-500 font-medium text-sm mt-0.5">
                       ₹{price} <span className="text-xs text-gray-400">/ unit</span>
                     </p>
+                    {isOwned && !isFromThisOutpost && (
+                      <p className="text-xs text-amber-700 font-medium mt-1">
+                        Bought at {originName} (Cannot swap here)
+                      </p>
+                    )}
                   </div>
                 </div>
                 <div className="shrink-0">
@@ -283,7 +362,7 @@ export default function Market() {
                     <Button disabled={loadingAction} onClick={() => handleBuy(compId, price)} className="rounded-full px-6 text-sm font-bold">
                       Buy
                     </Button>
-                  ) : (
+                  ) : isFromThisOutpost ? (
                     <Button 
                       disabled={loadingAction} 
                       onClick={() => handleSwap(compId, price, boughtPrice)}
@@ -292,38 +371,87 @@ export default function Market() {
                     >
                       Swap {swapData.label}
                     </Button>
+                  ) : (
+                    <Button 
+                      disabled 
+                      variant="outline" 
+                      className="rounded-full px-4 text-xs font-semibold bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
+                    >
+                      Owned ({originName})
+                    </Button>
                   )}
                 </div>
               </Card>
             );
           })}
 
-          {tab === 'sell' && inventoryItems.map(compId => {
-            const stocksIt = activeOutpost.prices[compId] !== undefined;
-            if (!stocksIt) return null;
-            const boughtPrice = team.inventory[compId].boughtPrice;
-            
-            return (
-              <Card key={compId} className="border-none shadow-sm rounded-3xl bg-white overflow-hidden flex items-center justify-between p-4 sm:p-5">
-                <div className="flex items-center min-w-0 flex-1 mr-3">
-                  <ComponentIcon compId={compId} />
-                  <div className="ml-3 sm:ml-4 min-w-0 flex-1">
-                    <h3 className="font-bold text-base sm:text-lg text-gray-900 truncate">
-                      {components[compId]?.name || compId}
-                    </h3>
-                    <p className="text-gray-500 font-medium text-sm mt-0.5">
-                      Bought at: <span className="font-semibold text-gray-700">₹{boughtPrice}</span>
-                    </p>
-                  </div>
+          {tab === 'sell' && (
+            <div className="space-y-3">
+              {inventoryItems.length === 0 ? (
+                <div className="bg-white rounded-3xl p-8 text-center border-none shadow-sm">
+                  <p className="text-gray-500 font-medium">Your inventory is empty.</p>
+                  <p className="text-xs text-gray-400 mt-1">Acquired components will appear here.</p>
                 </div>
-                <div className="shrink-0">
-                  <Button variant="outline" disabled={loadingAction} onClick={() => handleSell(compId, boughtPrice)} className="rounded-full px-5 border-gray-300 font-bold text-sm">
-                    Sell +₹{boughtPrice}
-                  </Button>
-                </div>
-              </Card>
-            );
-          })}
+              ) : (
+                <>
+                  {inventoryItems.filter(compId => isPurchasedAtCurrentOutpost(team.inventory[compId], activeOutpost)).length === 0 && (
+                    <div className="bg-white rounded-3xl p-6 text-center border-none shadow-sm">
+                      <p className="text-gray-700 font-semibold">No items purchased at this outpost</p>
+                      <p className="text-xs text-gray-400 mt-1">Components can only be sold at the exact outpost where they were purchased.</p>
+                    </div>
+                  )}
+
+                  {inventoryItems.map(compId => {
+                    const invItem = team.inventory[compId];
+                    const isFromThisOutpost = isPurchasedAtCurrentOutpost(invItem, activeOutpost);
+                    const boughtPrice = invItem.boughtPrice;
+                    const originName = !isFromThisOutpost ? getOriginOutpostName(invItem.outpostId) : null;
+
+                    return (
+                      <Card key={compId} className={`border-none shadow-sm rounded-3xl bg-white overflow-hidden flex items-center justify-between p-4 sm:p-5 ${!isFromThisOutpost ? 'opacity-65 bg-gray-50/90' : ''}`}>
+                        <div className="flex items-center min-w-0 flex-1 mr-3">
+                          <ComponentIcon compId={compId} />
+                          <div className="ml-3 sm:ml-4 min-w-0 flex-1">
+                            <h3 className="font-bold text-base sm:text-lg text-gray-900 truncate">
+                              {components[compId]?.name || compId}
+                            </h3>
+                            <p className="text-gray-500 font-medium text-sm mt-0.5">
+                              Bought at: <span className="font-semibold text-gray-700">₹{boughtPrice}</span>
+                            </p>
+                            {!isFromThisOutpost && (
+                              <p className="text-xs text-amber-700 font-medium mt-0.5">
+                                Purchased at {originName}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        <div className="shrink-0">
+                          {isFromThisOutpost ? (
+                            <Button 
+                              variant="outline" 
+                              disabled={loadingAction} 
+                              onClick={() => handleSell(compId, boughtPrice)} 
+                              className="rounded-full px-5 border-gray-300 font-bold text-sm hover:border-black hover:bg-black hover:text-white transition-colors"
+                            >
+                              Sell +₹{boughtPrice}
+                            </Button>
+                          ) : (
+                            <Button 
+                              variant="outline" 
+                              disabled 
+                              className="rounded-full px-4 text-xs font-semibold bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
+                            >
+                              Sell at {originName}
+                            </Button>
+                          )}
+                        </div>
+                      </Card>
+                    );
+                  })}
+                </>
+              )}
+            </div>
+          )}
         </div>
 
       </div>
