@@ -15,7 +15,9 @@ const firebaseConfig = {
 };
 
 export const app = initializeApp(firebaseConfig);
-export const analytics = getAnalytics(app);
+export const analytics = typeof window !== 'undefined' ? getAnalytics(app) : null;
 export const auth = getAuth(app);
-setPersistence(auth, browserLocalPersistence);
+if (typeof window !== 'undefined') {
+  setPersistence(auth, browserLocalPersistence);
+}
 export const db = getDatabase(app);

@@ -4,11 +4,46 @@ import { useTeam } from '../context/TeamContext';
 import { useMarket } from '../context/MarketContext';
 import { auth, db } from '../lib/firebase';
 import { ref, get, runTransaction, serverTimestamp } from 'firebase/database';
-import { getActiveWindowIndex, getPrice } from '../lib/priceEngine';
+import { getActiveWindowIndex, getPrice, WINDOW_DURATION_MS } from '../lib/priceEngine';
 import { calculateSwapDelta, checkCircuitCompletion } from '../lib/gameLogic';
-import { Card, CardContent } from '../components/ui/card';
+import { Card } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
+import { 
+  Thermometer, 
+  Volume2, 
+  SlidersHorizontal, 
+  Zap, 
+  CircleDot, 
+  Lightbulb, 
+  Radio, 
+  Sun, 
+  Activity, 
+  Cpu,
+  ArrowLeft
+} from 'lucide-react';
+
+const COMPONENT_ICONS = {
+  temp_sensor: { icon: Thermometer, bg: 'bg-rose-50 text-rose-600 border-rose-100' },
+  buzzer: { icon: Volume2, bg: 'bg-purple-50 text-purple-600 border-purple-100' },
+  potentiometer: { icon: SlidersHorizontal, bg: 'bg-blue-50 text-blue-600 border-blue-100' },
+  capacitor: { icon: Zap, bg: 'bg-amber-50 text-amber-600 border-amber-100' },
+  push_button: { icon: CircleDot, bg: 'bg-cyan-50 text-cyan-600 border-cyan-100' },
+  led: { icon: Lightbulb, bg: 'bg-yellow-50 text-yellow-600 border-yellow-100' },
+  ultrasonic_sensor: { icon: Radio, bg: 'bg-indigo-50 text-indigo-600 border-indigo-100' },
+  photoresistor: { icon: Sun, bg: 'bg-orange-50 text-orange-600 border-orange-100' },
+  resistor: { icon: Activity, bg: 'bg-emerald-50 text-emerald-600 border-emerald-100' },
+};
+
+function ComponentIcon({ compId }) {
+  const conf = COMPONENT_ICONS[compId] || { icon: Cpu, bg: 'bg-gray-100 text-gray-700 border-gray-200' };
+  const Icon = conf.icon;
+  return (
+    <div className={`w-12 h-12 sm:w-14 sm:h-14 rounded-2xl flex items-center justify-center shrink-0 border ${conf.bg}`}>
+      <Icon className="w-6 h-6" />
+    </div>
+  );
+}
 
 export default function Market() {
   const { team } = useTeam();
@@ -42,7 +77,7 @@ export default function Market() {
       const idx = getActiveWindowIndex(gameConfig.gameStartTimestamp, now);
       setActiveWindow(idx);
       
-      const windowDuration = 10 * 60 * 1000;
+      const windowDuration = WINDOW_DURATION_MS;
       const elapsed = now - gameConfig.gameStartTimestamp;
       const nextChange = windowDuration - (elapsed % windowDuration);
       
@@ -182,7 +217,7 @@ export default function Market() {
         {/* Header Bar */}
         <div className="flex items-center justify-between">
           <Button variant="outline" className="rounded-full h-10 w-10 p-0" onClick={() => navigate('/home')}>
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+            <ArrowLeft className="w-5 h-5" />
           </Button>
           <div className="text-right">
             <p className="text-xs text-gray-500 font-bold uppercase tracking-widest mb-1">Prices change in</p>
@@ -213,7 +248,7 @@ export default function Market() {
         </div>
 
         {/* Listings */}
-        <div className="space-y-4 mt-6">
+        <div className="space-y-3 mt-6">
           {tab === 'buy' && Object.keys(activeOutpost.prices).map(compId => {
             const price = getPrice(activeOutpost, compId, activeWindow);
             if (price === undefined) return null;
@@ -221,19 +256,31 @@ export default function Market() {
             const isOwned = team.inventory?.[compId]?.owned;
             const boughtPrice = isOwned ? team.inventory[compId].boughtPrice : 0;
             const swapData = isOwned ? calculateSwapDelta(price, boughtPrice) : null;
+            const isMissionItem = circuit?.required?.includes(compId);
             
             return (
-              <Card key={compId} className="border-none shadow-sm rounded-3xl bg-white overflow-hidden flex items-center p-4">
-                <div className="h-16 w-16 bg-gray-100 rounded-2xl flex items-center justify-center shrink-0">
-                  <span className="font-bold text-xl">{compId.replace('c', '')}</span>
+              <Card key={compId} className="border-none shadow-sm rounded-3xl bg-white overflow-hidden flex items-center justify-between p-4 sm:p-5">
+                <div className="flex items-center min-w-0 flex-1 mr-3">
+                  <ComponentIcon compId={compId} />
+                  <div className="ml-3 sm:ml-4 min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="font-bold text-base sm:text-lg text-gray-900 truncate">
+                        {components[compId]?.name || compId}
+                      </h3>
+                      {isMissionItem && (
+                        <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                          Mission
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-gray-500 font-medium text-sm mt-0.5">
+                      ₹{price} <span className="text-xs text-gray-400">/ unit</span>
+                    </p>
+                  </div>
                 </div>
-                <div className="ml-4 flex-1">
-                  <h3 className="font-bold text-lg">{components[compId]?.name || compId}</h3>
-                  <p className="text-gray-500 font-medium">₹{price} / unit</p>
-                </div>
-                <div className="ml-4">
+                <div className="shrink-0">
                   {!isOwned ? (
-                    <Button disabled={loadingAction} onClick={() => handleBuy(compId, price)} className="rounded-full px-6">
+                    <Button disabled={loadingAction} onClick={() => handleBuy(compId, price)} className="rounded-full px-6 text-sm font-bold">
                       Buy
                     </Button>
                   ) : (
@@ -241,7 +288,7 @@ export default function Market() {
                       disabled={loadingAction} 
                       onClick={() => handleSwap(compId, price, boughtPrice)}
                       variant={swapData.color === 'green' ? 'success' : 'default'}
-                      className={`rounded-full px-6 ${swapData.color === 'green' ? 'bg-green-500 hover:bg-green-600' : swapData.color === 'red' ? 'bg-red-500 hover:bg-red-600' : ''}`}
+                      className={`rounded-full px-5 text-sm font-bold ${swapData.color === 'green' ? 'bg-green-500 hover:bg-green-600 text-white' : swapData.color === 'red' ? 'bg-red-500 hover:bg-red-600 text-white' : ''}`}
                     >
                       Swap {swapData.label}
                     </Button>
@@ -257,16 +304,20 @@ export default function Market() {
             const boughtPrice = team.inventory[compId].boughtPrice;
             
             return (
-              <Card key={compId} className="border-none shadow-sm rounded-3xl bg-white overflow-hidden flex items-center p-4">
-                <div className="h-16 w-16 bg-gray-100 rounded-2xl flex items-center justify-center shrink-0">
-                  <span className="font-bold text-xl">{compId.replace('c', '')}</span>
+              <Card key={compId} className="border-none shadow-sm rounded-3xl bg-white overflow-hidden flex items-center justify-between p-4 sm:p-5">
+                <div className="flex items-center min-w-0 flex-1 mr-3">
+                  <ComponentIcon compId={compId} />
+                  <div className="ml-3 sm:ml-4 min-w-0 flex-1">
+                    <h3 className="font-bold text-base sm:text-lg text-gray-900 truncate">
+                      {components[compId]?.name || compId}
+                    </h3>
+                    <p className="text-gray-500 font-medium text-sm mt-0.5">
+                      Bought at: <span className="font-semibold text-gray-700">₹{boughtPrice}</span>
+                    </p>
+                  </div>
                 </div>
-                <div className="ml-4 flex-1">
-                  <h3 className="font-bold text-lg">{components[compId]?.name || compId}</h3>
-                  <p className="text-gray-500 font-medium">Bought: ₹{boughtPrice}</p>
-                </div>
-                <div className="ml-4">
-                  <Button variant="outline" disabled={loadingAction} onClick={() => handleSell(compId, boughtPrice)} className="rounded-full px-6 border-gray-300">
+                <div className="shrink-0">
+                  <Button variant="outline" disabled={loadingAction} onClick={() => handleSell(compId, boughtPrice)} className="rounded-full px-5 border-gray-300 font-bold text-sm">
                     Sell +₹{boughtPrice}
                   </Button>
                 </div>

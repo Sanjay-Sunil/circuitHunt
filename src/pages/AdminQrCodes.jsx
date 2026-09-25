@@ -20,17 +20,23 @@ export default function AdminQrCodes() {
   return (
     <div style={{ padding: '2rem' }}>
       <div className="no-print" style={{ marginBottom: '2rem', textAlign: 'center' }}>
-        <h1>Outpost QR Codes</h1>
+        <h1 className="text-3xl font-extrabold mb-2">Outpost QR Codes</h1>
         <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem', marginTop: '1rem' }}>
-          <button onClick={() => navigate('/admin')} style={{ padding: '0.8rem 1.5rem', background: '#ccc', color: 'black' }}>
+          <button 
+            onClick={() => navigate('/admin/dashboard')} 
+            style={{ padding: '0.8rem 1.5rem', background: '#111', color: 'white', borderRadius: '0.75rem', fontWeight: 'bold', cursor: 'pointer', border: 'none' }}
+          >
             Back to Dashboard
           </button>
-          <button onClick={() => window.print()} style={{ padding: '0.8rem 1.5rem', background: '#007bff', color: 'white' }}>
+          <button 
+            onClick={() => window.print()} 
+            style={{ padding: '0.8rem 1.5rem', background: '#2563eb', color: 'white', borderRadius: '0.75rem', fontWeight: 'bold', cursor: 'pointer', border: 'none' }}
+          >
             Print All QR Codes
           </button>
         </div>
-        <p style={{ marginTop: '1rem', color: '#666' }}>
-          These codes contain ONLY the raw outpost UUIDs. They cannot be opened by standard camera apps.
+        <p style={{ marginTop: '1rem', color: '#666', fontSize: '0.875rem' }}>
+          These codes contain raw outpost slugs/UUIDs. Scanning via the player camera will automatically redirect teams to the corresponding outpost market.
         </p>
       </div>
 
